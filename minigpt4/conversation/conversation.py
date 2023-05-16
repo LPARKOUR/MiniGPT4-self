@@ -133,6 +133,12 @@ class Chat:
             conv.messages[-1][1] = ' '.join([conv.messages[-1][1], text])
         else:
             conv.append_message(conv.roles[0], text)
+        try:
+            print(type(conv))
+            print("conv:",conv)
+            print("conv.messages:",conv.messages)
+        except:
+            pass
 
     def answer(self, conv, img_list, max_new_tokens=300, num_beams=1, min_length=1, top_p=0.9,
                repetition_penalty=1.0, length_penalty=1, temperature=1.0, max_length=2000):
@@ -183,8 +189,15 @@ class Chat:
             image = image.to(self.device)
 
         image_emb, _ = self.model.encode_img(image)
+
         img_list.append(image_emb)
         conv.append_message(conv.roles[0], "<Img><ImageHere></Img>")
+        try:
+            print(image_emb.shape)
+            print("image_emb:",image_emb)
+            print("conv0:",conv.message)
+        except:
+            pass
         msg = "Received."
         # self.conv.append_message(self.conv.roles[1], msg)
         return msg

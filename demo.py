@@ -88,6 +88,7 @@ def gradio_ask(user_message, chatbot, chat_state):
         return gr.update(interactive=True, placeholder='Input should not be empty!'), chatbot, chat_state
     chat.ask(user_message, chat_state)
     chatbot = chatbot + [[user_message, None]]
+    print("chatbot:",chatbot);
     return '', chatbot, chat_state
 
 
@@ -99,6 +100,12 @@ def gradio_answer(chatbot, chat_state, img_list, num_beams, temperature):
                               max_new_tokens=300,
                               max_length=2000)[0]
     chatbot[-1][1] = llm_message
+    try:
+        print("chatbot2",chatbot)
+        print("User: ", chatbot[-2][0])
+        print("MiniGPT-4: ", llm_message)
+    except:
+        pass
     return chatbot, chat_state, img_list
 
 title = """<h1 align="center">Demo of MiniGPT-4</h1>"""
