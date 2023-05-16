@@ -1,4 +1,4 @@
-#pytorch test
+#pytorch
 #defaults
 #anaconda
 #python==3.9
