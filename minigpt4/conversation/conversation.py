@@ -11,7 +11,21 @@ from enum import auto, Enum
 from typing import List, Tuple, Any
 
 from minigpt4.common.registry import registry
+from google.colab.patches import cv2_imshow
+import open3d as o3d
+import numpy as np
+import random
+import math
+import cv2
+import copy
 
+NUM_PICTUR=4
+PICTURE_WIDTH=640
+PICTURE_HEIGHT=640
+r_x = [0] * NUM_PICTUR
+r_y = [0] * NUM_PICTUR
+r_z = [0] * NUM_PICTUR
+cloud = [0] * NUM_PICTUR
 
 class SeparatorStyle(Enum):
     """Different separator style."""
@@ -119,13 +133,21 @@ CONV_VISION = Conversation(
 
 
 class Chat:
-    def __init__(self, model, vis_processor, device='cuda:0'):
-        self.device = device
-        self.model = model
-        self.vis_processor = vis_processor
-        stop_words_ids = [torch.tensor([835]).to(self.device),
-                          torch.tensor([2277, 29937]).to(self.device)]  # '###' can be encoded in two different ways.
-        self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+    # def __init__(self, model, vis_processor, device='cuda:0'):
+    def __init__(self):
+
+        # self.device = device
+        # self.model = model
+        # self.vis_processor = vis_processor
+        # stop_words_ids = [torch.tensor([835]).to(self.device),
+        #                   torch.tensor([2277, 29937]).to(self.device)]  # '###' can be encoded in two different ways.
+        # self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+        
+        self.device = 0
+        self.model = 0
+        self.vis_processor = 0
+        stop_words_ids = 0 # '###' can be encoded in two different ways.
+        self.stopping_criteria = 0
 
     def ask(self, text, conv):
         if len(conv.messages) > 0 and conv.messages[-1][0] == conv.roles[0] \
@@ -177,16 +199,22 @@ class Chat:
         return output_text, output_token.cpu().numpy()
 
     def upload_img(self, image, conv, img_list):
+        print("Start");
+        print(type(image))
+        print(image.name)
         # if isinstance(image, str):  # is a image path
+        #     print("A")
         #     raw_image = Image.open(image).convert('RGB')
-        #     image = self.vis_processor(raw_image).unsqueeze(0).to(self.device)
+        #     # image = self.vis_processor(raw_image).unsqueeze(0).to(self.device)
         # elif isinstance(image, Image.Image):
+        #     print("b")
         #     raw_image = image
-        #     image = self.vis_processor(raw_image).unsqueeze(0).to(self.device)
+        #     # image = self.vis_processor(raw_image).unsqueeze(0).to(self.device)
         # elif isinstance(image, torch.Tensor):
+        #     print("c")
         #     if len(image.shape) == 3:
         #         image = image.unsqueeze(0)
-        #     image = image.to(self.device)
+            # image = image.to(self.device)
 
         # image_emb, _ = self.model.encode_img(image)
 
@@ -198,6 +226,58 @@ class Chat:
         #     print("conv0:",conv.message)
         # except:
         #     pass
+
+        raw_cloud = o3d.io.read_point_cloud(image.name)
+        # o3d.visualization.draw_geometries([cloud])
+        for i in range(NUM_PICTUR):
+            r_x[i] = random_number = random.random() * 2 * math.pi
+            r_y[i] = random_number = random.random() * 2 * math.pi
+            r_z[i] = random_number = random.random() * 2 * math.pi
+            cloud[i] = copy.deepcopy(raw_cloud)
+            R = o3d.geometry.get_rotation_matrix_from_xyz((r_x[i], r_y[i], r_z[i]))  # 欧拉角转变换矩阵
+            cloud[i].rotate(R, center=(0, 0, 0))
+        
+        # print('沿X轴旋转90度，沿Z轴旋转45度的欧拉角转换成旋转矩阵为\n', R1)
+        
+        # o3d.visualization.draw_geometries([cloud[0].scale(0.5,center=cloud[0].get_center()),cloud[1].translate((1,0,0)),cloud[2].translate((0,1,0)),cloud[3].translate((1,1,0))])
+        
+        step = 0.001  # 像素大小
+        # ------------------创建像素格网-----------------------
+        for i in range(NUM_PICTUR):
+            # o3d.visualization.draw_geometries([cloud[0]])
+        
+            point_cloud = np.asarray(cloud[i].scale(0.5, center=cloud[i].get_center()).points)
+            # print(point_cloud.shape)
+            # print(point_cloud)
+            # 1、获取点云数据边界
+            x_min, y_min, z_min = np.amin(point_cloud, axis=0)
+            x_max, y_max, z_max = np.amax(point_cloud, axis=0)
+            print(x_min, x_max, y_min, y_max)
+            # 2、计算像素格网行列数
+            width = np.ceil((x_max - x_min) / step)
+            height = np.ceil((y_max - y_min) / step)
+            print("像素格网的大小为： {} x {}".format(width, height))
+            # 创建一个黑色的空白图像
+            # img = np.zeros((int(width), int(height)), dtype=np.uint8)
+            img = np.zeros((int(PICTURE_WIDTH), int(PICTURE_HEIGHT)), dtype=np.uint8)
+        
+            img.fill(255)  # 设置图片背景颜色，默认为：黑色。
+            # print(img)
+            # 3、计算每个点的像素格网索引，并将有点的像素格网赋值为白色
+            for i in range(len(point_cloud)):
+                col = np.floor((point_cloud[i][0] - x_min) / step + (PICTURE_WIDTH - (x_max - x_min) / step) / 2)
+                row = np.floor((point_cloud[i][1] - y_min) / step + (PICTURE_HEIGHT - (y_max - y_min) / step) / 2)
+                img[int(col), int(row)] = 0
+            # 生成的图片与实际视角偏差90°，因此做一下旋转
+            img90 = np.rot90(img)
+            # print(img90)
+            # canny = cv2.Canny(img90, 100, 200, 3)
+        
+            # cv2.imwrite("img90.png", img90)  # 保存图片
+            cv2_imshow(img90)  # 显示图片
+            # cv2.imshow('canny', canny)  # 显示图片
+            cv2.waitKey(0)
+
         msg = "Received."
         # self.conv.append_message(self.conv.roles[1], msg)
         return msg

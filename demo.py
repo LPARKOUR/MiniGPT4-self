@@ -51,17 +51,18 @@ def setup_seeds(config):
 # ========================================
 
 print('Initializing Chat')
-args = parse_args()
-cfg = Config(args)
+# args = parse_args()
+# cfg = Config(args)
 
-model_config = cfg.model_cfg
-model_config.device_8bit = args.gpu_id
-model_cls = registry.get_model_class(model_config.arch)
-model = model_cls.from_config(model_config).to('cuda:{}'.format(args.gpu_id))
+# model_config = cfg.model_cfg
+# model_config.device_8bit = args.gpu_id
+# model_cls = registry.get_model_class(model_config.arch)
+# model = model_cls.from_config(model_config).to('cuda:{}'.format(args.gpu_id))
 
-vis_processor_cfg = cfg.datasets_cfg.cc_sbu_align.vis_processor.train
-vis_processor = registry.get_processor_class(vis_processor_cfg.name).from_config(vis_processor_cfg)
-chat = Chat(model, vis_processor, device='cuda:{}'.format(args.gpu_id))
+# vis_processor_cfg = cfg.datasets_cfg.cc_sbu_align.vis_processor.train
+# vis_processor = registry.get_processor_class(vis_processor_cfg.name).from_config(vis_processor_cfg)
+# chat = Chat(model, vis_processor, device='cuda:{}'.format(args.gpu_id))
+chat = Chat()
 print('Initialization Finished')
 
 # ========================================
@@ -75,13 +76,24 @@ def gradio_reset(chat_state, img_list):
         img_list = []
     return None, gr.update(value=None, interactive=True), gr.update(placeholder='Please upload your image first', interactive=False),gr.update(value="Upload & Start Chat", interactive=True), chat_state, img_list
 
-def upload_img(gr_img, text_input, chat_state):
-    if gr_img is None:
+# def upload_img(gr_img, text_input, chat_state):
+#     if gr_img is None:
+#         return None, None, gr.update(interactive=True), chat_state, None
+#     print("text_input:",text_input)
+#     chat_state = CONV_VISION.copy()
+#     img_list = []
+#     llm_message = chat.upload_img(gr_img, chat_state, img_list)
+#     print("img_list:",img_list)
+#     return gr.update(interactive=False), gr.update(interactive=True, placeholder='Type and press Enter'), gr.update(value="Start Chatting", interactive=False), chat_state, img_list
+
+def upload_file(file, text_input, chat_state):
+    if file is None:
         return None, None, gr.update(interactive=True), chat_state, None
     chat_state = CONV_VISION.copy()
     img_list = []
-    llm_message = chat.upload_img(gr_img, chat_state, img_list)
+    llm_message = chat.upload_img(file, chat_state, img_list)
     return gr.update(interactive=False), gr.update(interactive=True, placeholder='Type and press Enter'), gr.update(value="Start Chatting", interactive=False), chat_state, img_list
+
 
 def gradio_ask(user_message, chatbot, chat_state):
     if len(user_message) == 0:
@@ -122,7 +134,7 @@ with gr.Blocks() as demo:
 
     with gr.Row():
         with gr.Column(scale=0.5):
-            image = gr.Image(type="pil")
+            file_upload = gr.File(label="Upload File", max_size=10000000)
             upload_button = gr.Button(value="Upload & Start Chat", interactive=True, variant="primary")
             clear = gr.Button("Restart")
             
@@ -150,11 +162,12 @@ with gr.Blocks() as demo:
             chatbot = gr.Chatbot(label='MiniGPT-4')
             text_input = gr.Textbox(label='User', placeholder='Please upload your image first', interactive=False)
     
-    upload_button.click(upload_img, [image, text_input, chat_state], [image, text_input, upload_button, chat_state, img_list])
+    
+    upload_button.click(upload_file, [file_upload, text_input, chat_state], [file_upload, text_input, upload_button, chat_state, img_list])
     
     text_input.submit(gradio_ask, [text_input, chatbot, chat_state], [text_input, chatbot, chat_state]).then(
         gradio_answer, [chatbot, chat_state, img_list, num_beams, temperature], [chatbot, chat_state, img_list]
     )
-    clear.click(gradio_reset, [chat_state, img_list], [chatbot, image, text_input, upload_button, chat_state, img_list], queue=False)
+    clear.click(gradio_reset, [chat_state, img_list], [chatbot, file_upload, text_input, upload_button, chat_state, img_list], queue=False)
 
 demo.launch(share=True, enable_queue=True)
