@@ -249,7 +249,7 @@ class Chat:
         avg_image_emb = sum_image_emb / len(image_embs)
 
         img_list.append(avg_image_emb)
-        img_list.append(image_emb)
+        # img_list.append(image_emb)
         conv.append_message(conv.roles[0], "<Img><ImageHere></Img>")
 
         msg = "Received."
