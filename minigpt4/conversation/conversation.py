@@ -11,14 +11,12 @@ from enum import auto, Enum
 from typing import List, Tuple, Any
 
 from minigpt4.common.registry import registry
-from google.colab.patches import cv2_imshow
 import open3d as o3d
 import numpy as np
 import random
 import math
 import cv2
 import copy
-from PIL import Image
 NUM_PICTUR=4
 PICTURE_WIDTH=640
 PICTURE_HEIGHT=640
@@ -134,20 +132,12 @@ CONV_VISION = Conversation(
 
 class Chat:
     def __init__(self, model, vis_processor, device='cuda:0'):
-    # def __init__(self):
-
         self.device = device
         self.model = model
         self.vis_processor = vis_processor
         stop_words_ids = [torch.tensor([835]).to(self.device),
                           torch.tensor([2277, 29937]).to(self.device)]  # '###' can be encoded in two different ways.
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
-        
-        self.device = 0
-        self.model = 0
-        self.vis_processor = 0
-        stop_words_ids = 0 # '###' can be encoded in two different ways.
-        self.stopping_criteria = 0
 
     def ask(self, text, conv):
         if len(conv.messages) > 0 and conv.messages[-1][0] == conv.roles[0] \
@@ -199,35 +189,7 @@ class Chat:
         return output_text, output_token.cpu().numpy()
 
     def upload_img(self, image, conv, img_list):
-        print("Start");
-        print(type(image))
-        print(image.name)
         image_embs = []
-        # if isinstance(image, str):  # is a image path
-        #     print("A")
-        #     raw_image = Image.open(image).convert('RGB')
-        #     # image = self.vis_processor(raw_image).unsqueeze(0).to(self.device)
-        # elif isinstance(image, Image.Image):
-        #     print("b")
-        #     raw_image = image
-        #     # image = self.vis_processor(raw_image).unsqueeze(0).to(self.device)
-        # elif isinstance(image, torch.Tensor):
-        #     print("c")
-        #     if len(image.shape) == 3:
-        #         image = image.unsqueeze(0)
-            # image = image.to(self.device)
-
-        # image_emb, _ = self.model.encode_img(image)
-
-        # img_list.append(image_emb)
-        # conv.append_message(conv.roles[0], "<Img><ImageHere></Img>")
-        # try:
-        #     print(image_emb.shape)
-        #     print("image_emb:",image_emb)
-        #     print("conv0:",conv.message)
-        # except:
-        #     pass
-
         raw_cloud = o3d.io.read_point_cloud(image.name)
         # o3d.visualization.draw_geometries([cloud])
         for i in range(NUM_PICTUR):
@@ -273,26 +235,23 @@ class Chat:
             img90 = np.rot90(img)
             rgb_image = cv2.cvtColor(img90, cv2.COLOR_GRAY2RGB)
             img_pil = Image.fromarray(cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB))
+      
+            # image=Image.open("/content/1a04e3eab45ca15dd86060f189eb133.png")
+            print("open suceess")
             raw_image = img_pil
-            img_pil = self.vis_processor(raw_image).unsqueeze(0).to(self.device)
-            image_emb, _ = self.model.encode_img(img_pil)
+            image = self.vis_processor(raw_image).unsqueeze(0).to(self.device)
+            image_emb, _ = self.model.encode_img(image)
             image_embs.append(image_emb)
-            # print(img90)
-            # canny = cv2.Canny(img90, 100, 200, 3)
         
-            # cv2.imwrite("img90.png", img90)  # 保存图片
-            # cv2_imshow(img90)  # 显示图片
-            # cv2.imshow('canny', canny)  # 显示图片
-            # cv2.waitKey(0)
-        # Convert list of embeddings to a tensor
-        # image_embs = torch.stack(image_embs)
+        image_embs = torch.stack(image_embs)
 
         sum_image_emb = torch.stack(image_embs).sum(dim=0)
         avg_image_emb = sum_image_emb / len(image_embs)
 
         img_list.append(avg_image_emb)
+        img_list.append(image_emb)
         conv.append_message(conv.roles[0], "<Img><ImageHere></Img>")
-        print("conv:",conv)
+
         msg = "Received."
         # self.conv.append_message(self.conv.roles[1], msg)
         return msg
