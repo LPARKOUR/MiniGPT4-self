@@ -243,7 +243,7 @@ class Chat:
             image_emb, _ = self.model.encode_img(image)
             image_embs.append(image_emb)
         
-        image_embs = torch.stack(image_embs)
+        # image_embs = torch.stack(image_embs)
 
         sum_image_emb = torch.stack(image_embs).sum(dim=0)
         avg_image_emb = sum_image_emb / len(image_embs)
@@ -251,7 +251,7 @@ class Chat:
         img_list.append(avg_image_emb)
         # img_list.append(image_emb)
         conv.append_message(conv.roles[0], "<Img><ImageHere></Img>")
-
+        print("done")
         msg = "Received."
         # self.conv.append_message(self.conv.roles[1], msg)
         return msg
