@@ -18,7 +18,7 @@ import random
 import math
 import cv2
 import copy
-
+from PIL import Image
 NUM_PICTUR=4
 PICTURE_WIDTH=640
 PICTURE_HEIGHT=640
@@ -133,15 +133,15 @@ CONV_VISION = Conversation(
 
 
 class Chat:
-    # def __init__(self, model, vis_processor, device='cuda:0'):
-    def __init__(self):
+    def __init__(self, model, vis_processor, device='cuda:0'):
+    # def __init__(self):
 
-        # self.device = device
-        # self.model = model
-        # self.vis_processor = vis_processor
-        # stop_words_ids = [torch.tensor([835]).to(self.device),
-        #                   torch.tensor([2277, 29937]).to(self.device)]  # '###' can be encoded in two different ways.
-        # self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+        self.device = device
+        self.model = model
+        self.vis_processor = vis_processor
+        stop_words_ids = [torch.tensor([835]).to(self.device),
+                          torch.tensor([2277, 29937]).to(self.device)]  # '###' can be encoded in two different ways.
+        self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
         
         self.device = 0
         self.model = 0
@@ -202,6 +202,7 @@ class Chat:
         print("Start");
         print(type(image))
         print(image.name)
+        image_embs = []
         # if isinstance(image, str):  # is a image path
         #     print("A")
         #     raw_image = Image.open(image).convert('RGB')
@@ -270,14 +271,28 @@ class Chat:
                 img[int(col), int(row)] = 0
             # 生成的图片与实际视角偏差90°，因此做一下旋转
             img90 = np.rot90(img)
+            rgb_image = cv2.cvtColor(img90, cv2.COLOR_GRAY2RGB)
+            img_pil = Image.fromarray(cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB))
+            raw_image = img_pil
+            img_pil = self.vis_processor(raw_image).unsqueeze(0).to(self.device)
+            image_emb, _ = self.model.encode_img(img_pil)
+            image_embs.append(image_emb)
             # print(img90)
             # canny = cv2.Canny(img90, 100, 200, 3)
         
             # cv2.imwrite("img90.png", img90)  # 保存图片
-            cv2_imshow(img90)  # 显示图片
+            # cv2_imshow(img90)  # 显示图片
             # cv2.imshow('canny', canny)  # 显示图片
-            cv2.waitKey(0)
+            # cv2.waitKey(0)
+        # Convert list of embeddings to a tensor
+        image_embs = torch.stack(image_embs)
 
+        sum_image_emb = torch.stack(image_embs).sum(dim=0)
+        avg_image_emb = sum_image_emb / len(image_embs)
+
+        img_list.append(avg_image_emb)
+        conv.append_message(conv.roles[0], "<Img><ImageHere></Img>")
+        print("conv:",conv)
         msg = "Received."
         # self.conv.append_message(self.conv.roles[1], msg)
         return msg
