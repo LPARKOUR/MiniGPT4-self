@@ -285,7 +285,7 @@ class Chat:
             # cv2.imshow('canny', canny)  # 显示图片
             # cv2.waitKey(0)
         # Convert list of embeddings to a tensor
-        image_embs = torch.stack(image_embs)
+        # image_embs = torch.stack(image_embs)
 
         sum_image_emb = torch.stack(image_embs).sum(dim=0)
         avg_image_emb = sum_image_emb / len(image_embs)
